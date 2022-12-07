@@ -410,7 +410,8 @@ defmodule PolymorphicEmbed do
     Enum.find(types_metadata, &(type == to_string(&1.type)))
   end
 
-  defp get_field_options(schema, field) do
+  @doc false
+  def get_field_options(schema, field) do
     try do
       schema.__schema__(:type, field)
     rescue

@@ -155,16 +155,20 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) d
         }
 
         index_string = Integer.to_string(i)
+        # get the source schema for fetching the type if it was not determined earlier
+        # and also correctly set id and name for embeds_many inputs
         %schema{} = form.source.data
+        field_options = PolymorphicEmbed.get_field_options(schema, field)
+        array? = Map.get(field_options, :array?, false)
         type = type || PolymorphicEmbed.get_polymorphic_type(schema, field, changeset.data)
 
         %Phoenix.HTML.Form{
           source: changeset,
           impl: Phoenix.HTML.FormData.Ecto.Changeset,
           # https://github.com/phoenixframework/phoenix_ecto/blob/ae8112822152ac206764c33fdc53ede0e60bbcbb/lib/phoenix_ecto/html.ex#L92
-          id: if(num_entries > 1, do: id <> "_" <> index_string, else: id),
-          name: if(num_entries > 1, do: name <> "[" <> index_string <> "]", else: name),
-          index: if(num_entries > 1, do: i),
+          id: if(num_entries > 1 || array?, do: id <> "_" <> index_string, else: id),
+          name: if(num_entries > 1 || array?, do: name <> "[" <> index_string <> "]", else: name),
+          index: if(num_entries > 1 || array?, do: i),
           errors: errors,
           data: data,
           params: params,
