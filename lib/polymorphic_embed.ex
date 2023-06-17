@@ -58,6 +58,15 @@ defmodule PolymorphicEmbed do
     }
   end
 
+  defp key_as_int({key, val}) when is_binary(key) do
+    case Integer.parse(key) do
+      {key, ""} -> {key, val}
+      _ -> {key, val}
+    end
+  end
+
+  defp key_as_int(key_val), do: key_val
+
   def cast_polymorphic_embed(changeset, field, cast_options \\ [])
 
   def cast_polymorphic_embed(%Ecto.Changeset{} = changeset, field, cast_options) do
@@ -120,6 +129,23 @@ defmodule PolymorphicEmbed do
       {:ok, params_for_field} ->
         cond do
           array? and is_list(params_for_field) ->
+            cast_polymorphic_embeds_many(
+              changeset,
+              field,
+              changeset_fun,
+              params_for_field,
+              field_options
+            )
+
+          # phoenix forms submit values as %{"0" => %{...}, "1" => %{...}}
+          array? and is_map(params_for_field) ->
+            # see https://github.com/elixir-ecto/ecto/blob/754138766c426a4fccb6f55bd1e740848d29d2ff/lib/ecto/changeset/relation.ex#L106
+            params_for_field =
+              params_for_field
+              |> Enum.map(&key_as_int/1)
+              |> Enum.sort()
+              |> Enum.map(&elem(&1, 1))
+
             cast_polymorphic_embeds_many(
               changeset,
               field,
