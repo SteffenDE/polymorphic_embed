@@ -170,9 +170,15 @@ defmodule PolymorphicEmbed do
   defp apply_sort_drop(value, sort, drop, default) when is_map(value) do
     drop = if is_list(drop), do: drop, else: []
 
+    popper =
+      case default do
+        fun when is_function(fun, 0) -> &Map.pop_lazy/3
+        _ -> &Map.pop/3
+      end
+
     {sorted, pending} =
       if is_list(sort) do
-        Enum.map_reduce(sort -- drop, value, &Map.pop(&2, &1, default))
+        Enum.map_reduce(sort -- drop, value, &popper.(&2, &1, default))
       else
         {[], value}
       end

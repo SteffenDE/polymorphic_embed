@@ -69,7 +69,11 @@ defmodule PolymorphicEmbed.Reminder do
       sort_create: %{__type__: :location},
       drop_param: :contexts_drop
     )
-    |> cast_polymorphic_embed(:contexts2)
+    |> cast_polymorphic_embed(:contexts2,
+      sort_param: :contexts2_sort,
+      sort_create: fn -> %{__type__: :location} end,
+      drop_param: :contexts2_drop
+    )
   end
 
   def custom_changeset(struct, values) do
