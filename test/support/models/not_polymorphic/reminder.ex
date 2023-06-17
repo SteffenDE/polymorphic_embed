@@ -19,7 +19,7 @@ defmodule PolymorphicEmbed.Regular.Reminder do
     |> cast(values, [:date, :text])
     |> validate_required(:date)
     |> cast_embed(:channel)
-    |> cast_embed(:contexts)
+    |> cast_embed(:contexts, sort_param: :contexts_sort, drop_param: :contexts_drop)
   end
 
   def custom_changeset(struct, values) do

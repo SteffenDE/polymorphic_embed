@@ -58,15 +58,6 @@ defmodule PolymorphicEmbed do
     }
   end
 
-  defp key_as_int({key, val}) when is_binary(key) do
-    case Integer.parse(key) do
-      {key, ""} -> {key, val}
-      _ -> {key, val}
-    end
-  end
-
-  defp key_as_int(key_val), do: key_val
-
   def cast_polymorphic_embed(changeset, field, cast_options \\ [])
 
   def cast_polymorphic_embed(%Ecto.Changeset{} = changeset, field, cast_options) do
@@ -98,9 +89,28 @@ defmodule PolymorphicEmbed do
         end
     end
 
+    # used for sort_param and drop_param support for many embeds
+    sort = opts_key_from_params(:sort_param, cast_options, changeset.params)
+    sort_create = Keyword.get(cast_options, :sort_create, %{})
+    drop = opts_key_from_params(:drop_param, cast_options, changeset.params)
+
     (changeset.params || %{})
     |> Map.fetch(to_string(field))
     |> case do
+      :error when array? and (is_list(sort) or is_list(drop)) ->
+        # when the assoc param is not given, but a sort/drop param, e.g.
+        # when it was empty and we add the first element, see:
+        # https://github.com/elixir-ecto/ecto/commit/afc694ce723f047e9fe7828ad16cea2de82eb217
+        params_for_field = apply_sort_drop(%{}, sort, drop, sort_create)
+
+        cast_polymorphic_embeds_many(
+          changeset,
+          field,
+          changeset_fun,
+          params_for_field,
+          field_options
+        )
+
       :error when required ->
         if data_for_field = Map.fetch!(changeset.data, field) do
           data_for_field = autogenerate_id(data_for_field, changeset.action)
@@ -128,23 +138,9 @@ defmodule PolymorphicEmbed do
 
       {:ok, params_for_field} ->
         cond do
-          array? and is_list(params_for_field) ->
-            cast_polymorphic_embeds_many(
-              changeset,
-              field,
-              changeset_fun,
-              params_for_field,
-              field_options
-            )
-
-          # phoenix forms submit values as %{"0" => %{...}, "1" => %{...}}
-          array? and is_map(params_for_field) ->
-            # see https://github.com/elixir-ecto/ecto/blob/754138766c426a4fccb6f55bd1e740848d29d2ff/lib/ecto/changeset/relation.ex#L106
-            params_for_field =
-              params_for_field
-              |> Enum.map(&key_as_int/1)
-              |> Enum.sort()
-              |> Enum.map(&elem(&1, 1))
+          array? ->
+            # support sort_param and drop_param
+            params_for_field = apply_sort_drop(params_for_field, sort, drop, sort_create)
 
             cast_polymorphic_embeds_many(
               changeset,
@@ -169,6 +165,44 @@ defmodule PolymorphicEmbed do
   def cast_polymorphic_embed(_, _, _) do
     raise "cast_polymorphic_embed/3 only accepts a changeset as first argument"
   end
+
+  # from https://github.com/elixir-ecto/ecto/commit/dd5aaa11ea7a6d2bf16787ebe8270a5cd9079044#diff-edb6c9aaeb40387eb81c6b238954c0b4d813876d18805c6ae00d7ccc4d78e3f1R1196
+  defp apply_sort_drop(value, sort, drop, default) when is_map(value) do
+    drop = if is_list(drop), do: drop, else: []
+
+    {sorted, pending} =
+      if is_list(sort) do
+        Enum.map_reduce(sort -- drop, value, &Map.pop(&2, &1, default))
+      else
+        {[], value}
+      end
+
+    sorted ++
+      (pending
+       |> Map.drop(drop)
+       |> Enum.map(&key_as_int/1)
+       |> Enum.sort()
+       |> Enum.map(&elem(&1, 1)))
+  end
+
+  defp apply_sort_drop(value, _sort, _drop, _default) do
+    value
+  end
+
+  defp opts_key_from_params(opt, opts, params) do
+    if key = opts[opt] do
+      Map.get(params, Atom.to_string(key), nil)
+    end
+  end
+
+  defp key_as_int({key, val}) when is_binary(key) do
+    case Integer.parse(key) do
+      {key, ""} -> {key, val}
+      _ -> {key, val}
+    end
+  end
+
+  defp key_as_int(key_val), do: key_val
 
   defp cast_polymorphic_embeds_one(changeset, field, changeset_fun, params, field_options) do
     %{
@@ -418,8 +452,8 @@ defmodule PolymorphicEmbed do
     try do
       schema.__schema__(:type, field)
     rescue
-      _ in UndefinedFunctionError ->
-        raise ArgumentError, "#{inspect(schema)} is not an Ecto schema"
+      _e in UndefinedFunctionError ->
+        reraise ArgumentError, "#{inspect(schema)} is not an Ecto schema", __STACKTRACE__
     else
       {:parameterized, PolymorphicEmbed, options} -> Map.put(options, :array?, false)
       {:array, {:parameterized, PolymorphicEmbed, options}} -> Map.put(options, :array?, true)
