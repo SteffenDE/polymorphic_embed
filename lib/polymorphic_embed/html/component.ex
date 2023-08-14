@@ -106,9 +106,10 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) &
       <%= for finner <- @forms do %>
         <%= unless @skip_hidden do %>
           <%= for {name, value_or_values} <- finner.hidden,
+                  id = Phoenix.HTML.Form.input_id(finner, name),
                   name = name_for_value_or_values(finner, name, value_or_values),
                   value <- List.wrap(value_or_values) do %>
-            <input type="hidden" name={name} value={value} />
+            <input type="hidden" id={id} name={name} value={value} />
           <% end %>
         <% end %>
         <%= render_slot(@inner_block, finner) %>
