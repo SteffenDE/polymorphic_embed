@@ -1,7 +1,9 @@
 if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) &&
-     Code.ensure_loaded?(Phoenix.Component) do
+     Code.ensure_loaded?(Phoenix.Component) && Code.ensure_loaded?(PhoenixHTMLHelpers.Form) do
   defmodule PolymorphicEmbed.HTML.Component do
     use Phoenix.Component
+
+    import PolymorphicEmbed.HTML.Helpers
 
     @doc """
     Renders nested form inputs for polymorphic embeds.
@@ -65,10 +67,10 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) &
         |> Keyword.merge(options)
 
       %schema{} = parent_form.source.data
-      type = PolymorphicEmbed.HTML.Form.get_polymorphic_type(parent_form, schema, field_name)
+      type = get_polymorphic_type(parent_form, schema, field_name)
 
       forms =
-        PolymorphicEmbed.HTML.Form.to_form(
+        to_form(
           parent_form.source,
           parent_form,
           field_name,
