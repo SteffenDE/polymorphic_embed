@@ -1,5 +1,5 @@
 if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) &&
-     Code.ensure_loaded?(Phoenix.Component) && Code.ensure_loaded?(PhoenixHTMLHelpers.Form) do
+     Code.ensure_loaded?(Phoenix.Component) do
   defmodule PolymorphicEmbed.HTML.Component do
     use Phoenix.Component
 
